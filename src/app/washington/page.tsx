@@ -1,14 +1,12 @@
-import { getWashingtonTargets, type Sector } from '@/lib/db';
+import { getWashingtonTargets } from '@/lib/db';
 import { ProviderTable } from '@/components/ProviderTable';
 import { StatCard } from '@/components/StatCard';
 import { MapPin } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default async function WashingtonPage({ searchParams }: { searchParams: Promise<{ sector?: string }> }) {
-  const sp = await searchParams;
-  const sector = (sp.sector === 'home_health' ? 'home_health' : 'hospice') as Sector;
-  const waTargets = await getWashingtonTargets(sector);
+export default async function WashingtonPage() {
+  const waTargets = await getWashingtonTargets();
 
   const greenCount = waTargets.filter((p: any) => p.classification === 'GREEN').length;
   const yellowCount = waTargets.filter((p: any) => p.classification === 'YELLOW').length;

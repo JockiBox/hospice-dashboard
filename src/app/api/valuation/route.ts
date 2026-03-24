@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProviderFinancials, getComparableTransactions, getIndustryMultiples, type Sector } from '@/lib/db';
+import { getProviderFinancials, getComparableTransactions, getIndustryMultiples } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const ccn = searchParams.get('ccn');
     const type = searchParams.get('type') || 'full';
-    const sector = (searchParams.get('sector') || 'hospice') as Sector;
 
     if (type === 'multiples') {
       const multiples = await getIndustryMultiples();
@@ -25,7 +24,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'CCN is required' }, { status: 400 });
     }
 
-    const financials = await getProviderFinancials(ccn, sector);
+    const financials = await getProviderFinancials(ccn);
     if (!financials) {
       return NextResponse.json({ success: false, error: 'Provider not found' }, { status: 404 });
     }

@@ -6,7 +6,6 @@ import {
   Download, Check, CheckSquare, Square, Filter, Search,
   FileSpreadsheet, Loader2, Settings2, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { useSector } from '@/components/SectorProvider';
 
 interface FieldOption {
   key: string;
@@ -26,7 +25,6 @@ const US_STATES = [
 ];
 
 export default function ExportPage() {
-  const { sector } = useSector();
   const [fieldsByCategory, setFieldsByCategory] = useState<FieldsByCategory>({});
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -56,11 +54,11 @@ export default function ExportPage() {
 
   useEffect(() => {
     fetchFields();
-  }, [sector]);
+  }, []);
 
   async function fetchFields() {
     try {
-      const response = await fetch(`/api/export?fields=list&sector=${sector}`);
+      const response = await fetch('/api/export?fields=list');
       const data = await response.json();
       if (data.success) {
         setFieldsByCategory(data.data);
@@ -134,7 +132,6 @@ export default function ExportPage() {
       if (peOnly) params.set('peOnly', 'true');
       if (independentOnly) params.set('independentOnly', 'true');
       if (search) params.set('search', search);
-      params.set('sector', sector);
 
       const url = '/api/export?' + params.toString();
       const response = await fetch(url);

@@ -7,11 +7,9 @@ import { FilterBar } from '@/components/FilterBar';
 import { HospiceProvider } from '@/lib/db';
 import { Loader2, ArrowLeft, Download } from 'lucide-react';
 import Link from 'next/link';
-import { useSector } from '@/components/SectorProvider';
 
 function TargetsContent() {
   const searchParams = useSearchParams();
-  const { sector } = useSector();
   const [providers, setProviders] = useState<HospiceProvider[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +40,6 @@ function TargetsContent() {
       if (currentFilters.conStateOnly) params.set('conStateOnly', 'true');
       if (currentFilters.search) params.set('search', currentFilters.search);
       params.set('format', 'csv');
-      params.set('sector', sector);
 
       const response = await fetch(`/api/export?${params}`);
       const blob = await response.blob();
@@ -62,10 +59,10 @@ function TargetsContent() {
   };
 
   useEffect(() => {
-    fetch(`/api/states?sector=${sector}`)
+    fetch('/api/states')
       .then(res => res.json())
       .then(data => setStates(data.states || []));
-  }, [sector]);
+  }, []);
 
   const fetchProviders = useCallback(async (filters: any) => {
     setLoading(true);
@@ -79,7 +76,6 @@ function TargetsContent() {
       if (filters.conStateOnly) params.set('conStateOnly', 'true');
       if (filters.search) params.set('search', filters.search);
       params.set('limit', '100');
-      params.set('sector', sector);
 
       const res = await fetch(`/api/providers?${params}`);
       const data = await res.json();
@@ -90,12 +86,11 @@ function TargetsContent() {
     } finally {
       setLoading(false);
     }
-  }, [sector]);
+  }, []);
 
   useEffect(() => {
     fetchProviders(initialFilters);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sector]);
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-6">

@@ -15,7 +15,6 @@ import {
   ChevronUp,
   Loader2,
 } from 'lucide-react';
-import { useSector } from '@/components/SectorProvider';
 
 interface PEFirm {
   id: string;
@@ -48,7 +47,6 @@ interface MarketShare {
 }
 
 export default function CompetitorsPage() {
-  const { sector } = useSector();
   const [data, setData] = useState<{
     peFirms: PEFirm[];
     recentDeals: Transaction[];
@@ -61,11 +59,11 @@ export default function CompetitorsPage() {
   const [expandedSection, setExpandedSection] = useState<string | null>('marketShare');
 
   useEffect(() => {
-    fetch(`/api/competitors?sector=${sector}`)
+    fetch('/api/competitors')
       .then(res => res.json())
       .then(setData)
       .finally(() => setLoading(false));
-  }, [sector]);
+  }, []);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return '—';

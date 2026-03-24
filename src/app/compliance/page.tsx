@@ -7,7 +7,6 @@ import {
   Shield, AlertTriangle, CheckCircle, XCircle, Loader2,
   TrendingUp, TrendingDown, MapPin, Building2, Award, BarChart3
 } from 'lucide-react';
-import { useSector } from '@/components/SectorProvider';
 
 interface ComplianceSummary {
   total_providers: number;
@@ -87,7 +86,6 @@ const getClassificationColor = (classification: string) => {
 };
 
 export default function CompliancePage() {
-  const { sector } = useSector();
   const [summary, setSummary] = useState<ComplianceSummary | null>(null);
   const [stateData, setStateData] = useState<StateCompliance[]>([]);
   const [atRisk, setAtRisk] = useState<AtRiskProvider[]>([]);
@@ -98,16 +96,16 @@ export default function CompliancePage() {
 
   useEffect(() => {
     fetchData();
-  }, [sector]);
+  }, []);
 
   async function fetchData() {
     try {
       const [summaryRes, stateRes, atRiskRes, distRes, trendsRes] = await Promise.all([
-        fetch(`/api/compliance?type=summary&sector=${sector}`),
-        fetch(`/api/compliance?type=by-state&sector=${sector}`),
-        fetch(`/api/compliance?type=at-risk&sector=${sector}`),
-        fetch(`/api/compliance?type=distribution&sector=${sector}`),
-        fetch(`/api/compliance?type=trends&sector=${sector}`),
+        fetch('/api/compliance?type=summary'),
+        fetch('/api/compliance?type=by-state'),
+        fetch('/api/compliance?type=at-risk'),
+        fetch('/api/compliance?type=distribution'),
+        fetch('/api/compliance?type=trends'),
       ]);
 
       const [summaryData, stateData, atRiskData, distData, trendsData] = await Promise.all([

@@ -7,7 +7,6 @@ import {
   Calculator, DollarSign, TrendingUp, Building2, Search,
   Loader2, Info, ChevronRight, BarChart3, Target, Scale
 } from 'lucide-react';
-import { useSector } from '@/components/SectorProvider';
 
 interface Multiples {
   revenue_multiple: { low: number; median: number; high: number };
@@ -42,7 +41,6 @@ const formatNumber = (value: number | null | undefined) => {
 };
 
 export default function ValuationPage() {
-  const { sector } = useSector();
   const [ccn, setCcn] = useState('');
   const [loading, setLoading] = useState(false);
   const [multiples, setMultiples] = useState<Multiples | null>(null);
@@ -59,11 +57,11 @@ export default function ValuationPage() {
 
   useEffect(() => {
     fetchMultiples();
-  }, [sector]);
+  }, []);
 
   async function fetchMultiples() {
     try {
-      const response = await fetch(`/api/valuation?type=multiples&sector=${sector}`);
+      const response = await fetch('/api/valuation?type=multiples');
       const data = await response.json();
       if (data.success) {
         setMultiples(data.data);
@@ -77,7 +75,7 @@ export default function ValuationPage() {
     if (!ccn) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/valuation?ccn=${ccn}&sector=${sector}`);
+      const response = await fetch(`/api/valuation?ccn=${ccn}`);
       const data = await response.json();
       if (data.success) {
         setProvider(data.data.provider);

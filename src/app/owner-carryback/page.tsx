@@ -25,7 +25,6 @@ import {
   ArrowUpRight,
   Info,
 } from 'lucide-react';
-import { useSector } from '@/components/SectorProvider';
 
 interface EndemicStats {
   endemic_count: number;
@@ -87,7 +86,6 @@ interface EndemicState {
 }
 
 export default function OwnerCarryBackPage() {
-  const { sector } = useSector();
   const [loading, setLoading] = useState(true);
   const [endemicStats, setEndemicStats] = useState<EndemicStats | null>(null);
   const [pipelineStats, setPipelineStats] = useState<PipelineStats | null>(null);
@@ -99,7 +97,7 @@ export default function OwnerCarryBackPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch(`/api/owner-carryback?type=overview&sector=${sector}`);
+        const response = await fetch('/api/owner-carryback?type=overview');
         const data = await response.json();
 
         if (data.success) {
@@ -116,7 +114,7 @@ export default function OwnerCarryBackPage() {
     }
 
     fetchData();
-  }, [sector]);
+  }, []);
 
   const getLikelihoodBadge = (likelihood: string) => {
     switch (likelihood) {

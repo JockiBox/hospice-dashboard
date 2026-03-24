@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useSector } from '@/components/SectorProvider';
 import {
   Search,
   Filter,
@@ -114,7 +113,6 @@ const US_STATES = [
 
 export default function SearchPage() {
   const router = useRouter();
-  const { sector } = useSector();
   const [filters, setFilters] = useState<SearchFilters>({});
   const [results, setResults] = useState<Provider[]>([]);
   const [aggregates, setAggregates] = useState<Aggregates | null>(null);
@@ -153,17 +151,17 @@ export default function SearchPage() {
     ([_, v]) => v !== undefined && v !== '' && v !== false
   ).length;
 
-  // Auto-search on initial load and sector change
+  // Auto-search on initial load
   useEffect(() => {
     search();
-  }, [sector]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const search = useCallback(async () => {
     setLoading(true);
     setHasSearched(true);
 
     try {
-      const response = await fetch(`/api/search?sector=${sector}`, {
+      const response = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...filters, limit: 200 }),
@@ -178,7 +176,7 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, sector]);
+  }, [filters]);
 
   const exportResults = () => {
     if (results.length === 0) return;

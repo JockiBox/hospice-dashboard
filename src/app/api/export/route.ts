@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql, type Sector } from '@/lib/db';
+import { sql } from '@/lib/db';
 import * as XLSX from 'xlsx';
-
-const TABLES: Record<Sector, string> = {
-  hospice: 'hospice_providers',
-  home_health: 'home_health_providers',
-};
 
 // All available export fields with metadata
 const AVAILABLE_FIELDS: Record<string, { label: string; category: string; column: string }> = {
@@ -106,11 +101,9 @@ export async function GET(request: NextRequest) {
   const independentOnly = searchParams.get('independentOnly') === 'true';
   const search = searchParams.get('search');
   const format = searchParams.get('format') || 'csv';
-  const sector = (searchParams.get('sector') || 'hospice') as Sector;
-  const table = TABLES[sector] || 'hospice_providers';
 
   // Build dynamic query based on filters
-  let query = `SELECT ${columns} FROM ${table} WHERE 1=1`;
+  let query = `SELECT ${columns} FROM hospice_providers WHERE 1=1`;
 
   const params: (string | number | boolean)[] = [];
   let paramIndex = 1;
@@ -191,7 +184,7 @@ export async function GET(request: NextRequest) {
     if (format === 'xlsx') {
       const worksheet = XLSX.utils.json_to_sheet(formattedData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, sector === 'home_health' ? 'Home Health Providers' : 'Hospice Providers');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Hospice Providers');
 
       // Auto-size columns
       const colWidths = headers.map((header, i) => {
@@ -209,7 +202,7 @@ export async function GET(request: NextRequest) {
         status: 200,
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="${sector}-export-${new Date().toISOString().split('T')[0]}.xlsx"`,
+          'Content-Disposition': `attachment; filename="hospice-export-${new Date().toISOString().split('T')[0]}.xlsx"`,
         },
       });
     }
@@ -236,7 +229,7 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="${sector}-export-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Disposition': `attachment; filename="hospice-export-${new Date().toISOString().split('T')[0]}.csv"`,
       },
     });
   } catch (error) {

@@ -1,4 +1,4 @@
-import { getMarketTargets, getMarketStats, getMarketCityBreakdown, getMarketDemographics, getTopCountiesByDemographics, type Sector } from '@/lib/db';
+import { getMarketTargets, getMarketStats, getMarketCityBreakdown, getMarketDemographics, getTopCountiesByDemographics } from '@/lib/db';
 import { ProviderTable } from '@/components/ProviderTable';
 import { StatCard } from '@/components/StatCard';
 import { StateMapView } from '@/components/StateMapView';
@@ -95,10 +95,8 @@ export async function generateStaticParams() {
   return Object.keys(marketInfo).map((state) => ({ state }));
 }
 
-export default async function MarketPage({ params, searchParams }: { params: Promise<{ state: string }>; searchParams: Promise<{ sector?: string }> }) {
+export default async function MarketPage({ params }: { params: Promise<{ state: string }> }) {
   const { state } = await params;
-  const sp = await searchParams;
-  const sector = (sp.sector === 'home_health' ? 'home_health' : 'hospice') as Sector;
   const stateKey = state.toLowerCase();
   const market = marketInfo[stateKey];
 
@@ -107,11 +105,11 @@ export default async function MarketPage({ params, searchParams }: { params: Pro
   }
 
   const [targets, stats, cityBreakdown, demographics, topCounties] = await Promise.all([
-    getMarketTargets(state, sector),
-    getMarketStats(state, sector),
-    getMarketCityBreakdown(state, sector),
-    getMarketDemographics(state, sector),
-    getTopCountiesByDemographics(state, 10, sector),
+    getMarketTargets(state),
+    getMarketStats(state),
+    getMarketCityBreakdown(state),
+    getMarketDemographics(state),
+    getTopCountiesByDemographics(state),
   ]);
 
   const greenCount = Number(stats.green_count) || 0;

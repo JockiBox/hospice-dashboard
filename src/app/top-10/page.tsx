@@ -24,7 +24,6 @@ import {
   CheckCircle2,
   Info,
 } from 'lucide-react';
-import { useSector } from '@/components/SectorProvider';
 
 interface Opportunity {
   ccn: string;
@@ -105,7 +104,6 @@ const getRankBadge = (rank: number) => {
 };
 
 export default function Top10Page() {
-  const { sector } = useSector();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [marketStats, setMarketStats] = useState<MarketStats | null>(null);
   const [stateDistribution, setStateDistribution] = useState<StateDistribution[]>([]);
@@ -115,7 +113,7 @@ export default function Top10Page() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch(`/api/top-opportunities?sector=${sector}`);
+        const res = await fetch('/api/top-opportunities');
         const data = await res.json();
         setOpportunities(data.opportunities || []);
         setMarketStats(data.marketStats);
@@ -127,7 +125,7 @@ export default function Top10Page() {
       }
     }
     fetchData();
-  }, [sector]);
+  }, []);
 
   if (loading) {
     return (
