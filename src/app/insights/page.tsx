@@ -8,6 +8,7 @@ import {
   Shield, Building2, Star, Activity, Target, Zap, ChevronRight,
   RefreshCw, Database, ArrowUpRight, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
+import { useSector } from '@/components/SectorProvider';
 
 interface InsightsData {
   overview: any;
@@ -126,6 +127,7 @@ const StatCard = ({ label, value, sublabel, icon: Icon, color, href }: {
 };
 
 export default function InsightsPage() {
+  const { sector } = useSector();
   const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -134,7 +136,7 @@ export default function InsightsPage() {
   const fetchInsights = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/insights');
+      const res = await fetch(`/api/insights?sector=${sector}`);
       const json = await res.json();
       setData(json);
       setLastSync(new Date());
@@ -147,7 +149,7 @@ export default function InsightsPage() {
 
   useEffect(() => {
     fetchInsights();
-  }, []);
+  }, [sector]);
 
   const handleSync = async () => {
     setSyncing(true);

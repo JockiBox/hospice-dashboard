@@ -8,6 +8,7 @@ import {
   CheckCircle, Phone, Globe, AlertTriangle
 } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { useSector } from '@/components/SectorProvider';
 
 interface Provider {
   ccn: string;
@@ -74,6 +75,7 @@ const getClassificationColor = (classification: string) => {
 };
 
 export default function ReportsPage() {
+  const { sector } = useSector();
   const [ccn, setCcn] = useState('');
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,7 +92,7 @@ export default function ReportsPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/reports?ccn=' + ccn.trim());
+      const response = await fetch(`/api/reports?ccn=${ccn.trim()}&sector=${sector}`);
       const data = await response.json();
 
       if (data.success) {

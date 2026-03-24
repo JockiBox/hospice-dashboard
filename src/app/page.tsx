@@ -1,36 +1,38 @@
-import { getStats, getStateStats, getTopTargets, getOwnershipStats, getAdcDistribution, getScoreDistribution, getMapData, getConStateComparison, getEndemicStats, getDealPipelineStats } from '@/lib/db';
-import { DashboardClient } from '@/components/DashboardClient';
+import { getStats, getStateStats, getTopTargets, getOwnershipStats, getAdcDistribution, getScoreDistribution, getMapData, getConStateComparison, getEndemicStats, getDealPipelineStats, type Sector } from '@/lib/db';
+import { DashboardWrapper } from '@/components/DashboardWrapper';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+async function fetchDashboardData(sector: Sector) {
+  const [stats, stateStats, topTargets, ownershipStats, adcDistribution, scoreDistribution, mapData, conComparison, endemicStats, pipelineStats] = await Promise.all([
+    getStats(sector),
+    getStateStats(sector),
+    getTopTargets(5, sector),
+    getOwnershipStats(sector),
+    getAdcDistribution(sector),
+    getScoreDistribution(sector),
+    getMapData(sector),
+    getConStateComparison(sector),
+    getEndemicStats(sector),
+    getDealPipelineStats(sector),
+  ]);
+
+  return { stats, stateStats, topTargets, ownershipStats, adcDistribution, scoreDistribution, mapData, conComparison, endemicStats, pipelineStats };
+}
+
 export default async function Dashboard() {
   try {
-    const [stats, stateStats, topTargets, ownershipStats, adcDistribution, scoreDistribution, mapData, conComparison, endemicStats, pipelineStats] = await Promise.all([
-      getStats(),
-      getStateStats(),
-      getTopTargets(5),
-      getOwnershipStats(),
-      getAdcDistribution(),
-      getScoreDistribution(),
-      getMapData(),
-      getConStateComparison(),
-      getEndemicStats(),
-      getDealPipelineStats(),
+    // Fetch both sectors in parallel on the server
+    const [hospiceData, homeHealthData] = await Promise.all([
+      fetchDashboardData('hospice'),
+      fetchDashboardData('home_health'),
     ]);
 
     return (
-      <DashboardClient
-        stats={stats}
-        stateStats={stateStats as any}
-        topTargets={topTargets as any}
-        ownershipStats={ownershipStats as any}
-        adcDistribution={adcDistribution as any}
-        scoreDistribution={scoreDistribution as any}
-        mapData={mapData as any}
-        conComparison={conComparison as any}
-        endemicStats={endemicStats as any}
-        pipelineStats={pipelineStats as any}
+      <DashboardWrapper
+        hospiceData={hospiceData}
+        homeHealthData={homeHealthData}
       />
     );
   } catch (error) {

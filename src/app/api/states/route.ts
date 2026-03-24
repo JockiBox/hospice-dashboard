@@ -1,11 +1,10 @@
-import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { NextRequest, NextResponse } from 'next/server';
+import { getStates, type Sector } from '@/lib/db';
 
-const sql = neon(process.env.DATABASE_URL!);
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const result = await sql`SELECT DISTINCT state FROM hospice_providers ORDER BY state`;
+    const sector = (request.nextUrl.searchParams.get('sector') || 'hospice') as Sector;
+    const result = await getStates(sector);
     const states = result.map((r: any) => r.state);
     return NextResponse.json({ states });
   } catch (error) {

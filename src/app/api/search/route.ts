@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from '@neondatabase/serverless';
+import { type Sector } from '@/lib/db';
+
+const TABLES: Record<Sector, string> = {
+  hospice: 'hospice_providers',
+  home_health: 'home_health_providers',
+};
 
 export const dynamic = 'force-dynamic';
 
@@ -7,6 +13,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const searchParams = request.nextUrl.searchParams;
+  const sector = (searchParams.get('sector') || 'hospice') as Sector;
+  const table = TABLES[sector] || 'hospice_providers';
 
   try {
     const conditions: string[] = ['1=1'];
@@ -60,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     // Get total count
     const countResult = await pool.query(
-      `SELECT COUNT(*) as total FROM hospice_providers WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total FROM ${table} WHERE ${whereClause}`,
       params
     );
     const total = Number(countResult.rows[0]?.total || 0);
@@ -73,7 +81,7 @@ export async function GET(request: NextRequest) {
         estimated_adc, adc_fit, ownership_type_cms, pe_backed, chain_affiliated,
         con_state, competitive_density, phone_number, website,
         county_pop_65_plus, county_pct_65_plus
-      FROM hospice_providers
+      FROM ${table}
       WHERE ${whereClause}
       ORDER BY overall_score DESC NULLS LAST
       LIMIT ${limit}
@@ -102,6 +110,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const filters = await request.json();
+    const postSector = (filters.sector || 'hospice') as Sector;
+    const postTable = TABLES[postSector] || 'hospice_providers';
 
     // Build dynamic WHERE clauses
     const conditions: string[] = ['1=1'];
@@ -281,7 +291,7 @@ export async function POST(request: NextRequest) {
     const whereClause = conditions.join(' AND ');
 
     // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM hospice_providers WHERE ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as total FROM ${postTable} WHERE ${whereClause}`;
     const countResult = await pool.query(countQuery, params);
     const total = Number(countResult.rows[0]?.total || 0);
 
@@ -294,13 +304,13 @@ export async function POST(request: NextRequest) {
         con_state, market_type, competitive_density,
         total_revenue, total_expenses, net_income, cost_per_day, cost_report_year,
         county_pop_65_plus, county_pct_65_plus, county_median_income,
-        cms_cahps_star, cms_quality_star,
+        cms_quality_star,
         npi, authorized_official, authorized_official_title,
         ein, nonprofit_revenue, nonprofit_assets,
         phone_number, website, address_line_1,
         latitude, longitude,
         outreach_readiness, platform_vs_tuckin, confidence_level
-      FROM hospice_providers
+      FROM ${postTable}
       WHERE ${whereClause}
       ORDER BY ${orderBy}
       LIMIT ${limit}
@@ -322,7 +332,7 @@ export async function POST(request: NextRequest) {
         ROUND(SUM(total_revenue)::numeric, 0) as total_revenue,
         COUNT(DISTINCT state) as states,
         COUNT(DISTINCT city) as cities
-      FROM hospice_providers
+      FROM ${postTable}
       WHERE ${whereClause}
     `;
     const aggregatesResult = await pool.query(aggregateQuery, params);

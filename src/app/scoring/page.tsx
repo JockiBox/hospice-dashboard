@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { ClassificationBadge } from '@/components/ClassificationBadge';
+import { useSector } from '@/components/SectorProvider';
 
 interface ScoredProvider {
   ccn: string;
@@ -58,6 +59,7 @@ const weightLabels: Record<string, { label: string; icon: React.ElementType; col
 };
 
 export default function ScoringPage() {
+  const { sector } = useSector();
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
   const [providers, setProviders] = useState<ScoredProvider[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,7 +71,7 @@ export default function ScoringPage() {
   const calculateScores = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/scoring', {
+      const res = await fetch(`/api/scoring?sector=${sector}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

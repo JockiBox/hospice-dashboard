@@ -7,6 +7,7 @@ import {
   GitCompare, Plus, X, Loader2, Building2, TrendingUp,
   DollarSign, Users, Star, Shield, MapPin, Phone, CheckCircle, XCircle
 } from 'lucide-react';
+import { useSector } from '@/components/SectorProvider';
 
 interface Provider {
   ccn: string;
@@ -70,6 +71,7 @@ const getBestValue = (providers: Provider[], key: keyof Provider, higherIsBetter
 };
 
 export default function ComparePage() {
+  const { sector } = useSector();
   const [ccnInputs, setCcnInputs] = useState<string[]>(['', '']);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(false);
@@ -103,7 +105,7 @@ export default function ComparePage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/compare?ccns=${validCcns.join(',')}`);
+      const response = await fetch(`/api/compare?ccns=${validCcns.join(',')}&sector=${sector}`);
       const data = await response.json();
       if (data.success) {
         setProviders(data.data);

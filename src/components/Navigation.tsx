@@ -8,11 +8,12 @@ import {
   ChevronDown, Flame, TrendingUp, Map, Search, Trophy, BarChart3,
   Building2, Sliders, Mail, User, Briefcase, Users, Calculator,
   GitCompare, PieChart, Download, Shield, FileText, Play, DollarSign,
-  Activity, HelpCircle, Menu, X
+  Activity, HelpCircle, Menu, X, Heart, Home
 } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { useAuth } from './AuthProvider';
 import { useDemo } from './AppShell';
+import { useSector, type Sector } from './SectorProvider';
 import { useState, useRef, useEffect } from 'react';
 
 const hotMarkets = [
@@ -72,11 +73,43 @@ const toolsSections = [
   { key: 'help', label: 'Help' },
 ];
 
+function SectorSwitcher() {
+  const { sector, setSector } = useSector();
+
+  return (
+    <div className="flex items-center bg-[var(--color-bg-tertiary)] rounded-lg p-0.5 border border-[var(--color-border)]">
+      <button
+        onClick={() => setSector('hospice')}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 ${
+          sector === 'hospice'
+            ? 'bg-[var(--color-turquoise-500)] text-white shadow-md shadow-[var(--color-turquoise-500)]/30'
+            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+        }`}
+      >
+        <Heart className="w-3 h-3" />
+        <span className="hidden md:inline">Hospice</span>
+      </button>
+      <button
+        onClick={() => setSector('home_health')}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 ${
+          sector === 'home_health'
+            ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30'
+            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+        }`}
+      >
+        <Home className="w-3 h-3" />
+        <span className="hidden md:inline">Home Health</span>
+      </button>
+    </div>
+  );
+}
+
 export function Navigation() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { openDemo } = useDemo();
+  const { sector, sectorLabel } = useSector();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -101,16 +134,23 @@ export function Navigation() {
         <div className="flex items-center justify-between h-16 gap-4">
           {/* Logo - fixed width to prevent squishing */}
           <Link href="/" className="flex items-center gap-3 flex-shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-turquoise-400)] to-[var(--color-turquoise-600)] flex items-center justify-center shadow-lg shadow-[var(--color-turquoise-500)]/30">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 ${
+              sector === 'home_health'
+                ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-blue-500/30'
+                : 'bg-gradient-to-br from-[var(--color-turquoise-400)] to-[var(--color-turquoise-600)] shadow-[var(--color-turquoise-500)]/30'
+            }`}>
               <Star className="w-5 h-5 text-white fill-white" />
             </div>
             <div className="hidden sm:block">
               <h1 className="font-[family-name:var(--font-display)] font-bold text-lg leading-tight whitespace-nowrap">
-                Hospice Tracker
+                My 5 Star Report
               </h1>
-              <p className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">M&A Intelligence Platform</p>
+              <p className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">{sectorLabel} M&A Intelligence</p>
             </div>
           </Link>
+
+          {/* Sector Switcher */}
+          <SectorSwitcher />
 
           {/* Main Navigation - 4 primary tabs */}
           <div className="flex items-center gap-1">

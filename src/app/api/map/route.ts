@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGeocodedProviders, getCountyHeatmapData, sql } from '@/lib/db';
+import { getGeocodedProviders, getCountyHeatmapData, sql, type Sector } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const classification = searchParams.get('classification') || undefined;
     const state = searchParams.get('state') || undefined;
     const includeHeatmap = searchParams.get('heatmap') === 'true';
+    const sector = (searchParams.get('sector') || 'hospice') as Sector;
 
     let providers;
 
@@ -30,12 +31,12 @@ export async function GET(request: NextRequest) {
       `, [stateUpper]);
       providers = result;
     } else {
-      providers = await getGeocodedProviders(classification);
+      providers = await getGeocodedProviders(classification, sector);
     }
 
     let heatmapData = null;
     if (includeHeatmap) {
-      heatmapData = await getCountyHeatmapData();
+      heatmapData = await getCountyHeatmapData(sector);
     }
 
     return NextResponse.json({

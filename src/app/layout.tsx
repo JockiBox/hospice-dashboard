@@ -2,12 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+import { SectorProvider } from "@/components/SectorProvider";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "My 5 Star Report | CMS Quality Rating Intelligence",
-  description: "Track CMS 5-Star ratings, quality measures, and compliance metrics for hospice and nursing home providers.",
-  keywords: ["CMS", "5-star", "quality rating", "hospice", "nursing home", "healthcare", "compliance", "CAHPS"],
+  title: "My 5 Star Report | Hospice & Home Health M&A Intelligence",
+  description: "Track CMS 5-Star ratings, quality measures, and M&A intelligence for hospice and home health providers.",
+  keywords: ["CMS", "5-star", "quality rating", "hospice", "home health", "healthcare", "M&A", "acquisition", "CAHPS"],
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -57,7 +58,9 @@ export default function RootLayout({
       <body className="antialiased min-h-screen">
         <AuthProvider>
           <ThemeProvider>
-            <AppShell>{children}</AppShell>
+            <SectorProvider>
+              <AppShell>{children}</AppShell>
+            </SectorProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

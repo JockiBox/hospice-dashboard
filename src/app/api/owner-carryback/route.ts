@@ -7,6 +7,7 @@ import {
   getOwnerCarryBackCandidates,
   calculateOwnerCarryBackScore,
   HospiceProvider,
+  type Sector,
 } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -16,15 +17,16 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'overview';
     const limit = parseInt(searchParams.get('limit') || '50');
+    const sector = (searchParams.get('sector') || 'hospice') as Sector;
 
     switch (type) {
       case 'overview': {
         // Get comprehensive overview data
         const [endemicStats, endemicByState, pipelineStats, topOpportunities] = await Promise.all([
-          getEndemicStats(),
-          getEndemicByState(),
-          getDealPipelineStats(),
-          getTopOwnerCarryBackOpportunities(10),
+          getEndemicStats(sector),
+          getEndemicByState(sector),
+          getDealPipelineStats(sector),
+          getTopOwnerCarryBackOpportunities(10, sector),
         ]);
 
         // Add carry-back scores to top opportunities
@@ -45,7 +47,7 @@ export async function GET(request: Request) {
       }
 
       case 'candidates': {
-        const candidates = await getOwnerCarryBackCandidates(limit);
+        const candidates = await getOwnerCarryBackCandidates(limit, sector);
 
         // Add detailed carry-back analysis to each
         const scoredCandidates = (candidates as HospiceProvider[]).map((p) => ({
@@ -63,7 +65,7 @@ export async function GET(request: Request) {
       }
 
       case 'top': {
-        const topOpportunities = await getTopOwnerCarryBackOpportunities(limit);
+        const topOpportunities = await getTopOwnerCarryBackOpportunities(limit, sector);
 
         const scoredOpportunities = (topOpportunities as HospiceProvider[]).map((p) => ({
           ...p,
@@ -80,7 +82,7 @@ export async function GET(request: Request) {
       }
 
       case 'pipeline': {
-        const pipelineStats = await getDealPipelineStats();
+        const pipelineStats = await getDealPipelineStats(sector);
         return NextResponse.json({
           success: true,
           data: pipelineStats,
@@ -88,7 +90,7 @@ export async function GET(request: Request) {
       }
 
       case 'endemic-states': {
-        const endemicByState = await getEndemicByState();
+        const endemicByState = await getEndemicByState(sector);
         return NextResponse.json({
           success: true,
           data: endemicByState,

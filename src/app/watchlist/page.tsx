@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { ClassificationBadge } from '@/components/ClassificationBadge';
+import { useSector } from '@/components/SectorProvider';
 
 interface WatchlistItem {
   id: number;
@@ -33,6 +34,7 @@ interface WatchlistItem {
 }
 
 export default function WatchlistPage() {
+  const { sector } = useSector();
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -41,7 +43,7 @@ export default function WatchlistPage() {
 
   const fetchWatchlist = async () => {
     try {
-      const res = await fetch('/api/watchlist');
+      const res = await fetch(`/api/watchlist?sector=${sector}`);
       const data = await res.json();
       setWatchlist(data.watchlist || []);
     } catch (error) {
@@ -53,11 +55,11 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     fetchWatchlist();
-  }, []);
+  }, [sector]);
 
   const handleRemove = async (ccn: string) => {
     try {
-      await fetch(`/api/watchlist?ccn=${ccn}`, { method: 'DELETE' });
+      await fetch(`/api/watchlist?ccn=${ccn}&sector=${sector}`, { method: 'DELETE' });
       setWatchlist(watchlist.filter(item => item.ccn !== ccn));
     } catch (error) {
       console.error('Failed to remove from watchlist:', error);
@@ -72,7 +74,7 @@ export default function WatchlistPage() {
 
   const handleSaveEdit = async (ccn: string) => {
     try {
-      await fetch('/api/watchlist', {
+      await fetch(`/api/watchlist?sector=${sector}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ccn, notes: editNotes, priority: editPriority }),

@@ -6,6 +6,29 @@ if (!process.env.DATABASE_URL) {
 
 export const sql = neon(process.env.DATABASE_URL || '');
 
+// ============================================
+// SECTOR SUPPORT (Hospice + Home Health)
+// ============================================
+
+export type Sector = 'hospice' | 'home_health';
+
+const SECTOR_TABLES: Record<Sector, string> = {
+  hospice: 'hospice_providers',
+  home_health: 'home_health_providers',
+};
+
+function t(sector: Sector = 'hospice'): string {
+  return SECTOR_TABLES[sector] || 'hospice_providers';
+}
+
+// Helper: run a raw SQL query with dynamic table name
+// Safe because sector is always from our controlled enum, never user input
+async function sectorSql(sector: Sector, query: string, params: any[] = []) {
+  const table = t(sector);
+  const resolved = query.replace(/__T__/g, table);
+  return sql.query(resolved, params);
+}
+
 export interface HospiceProvider {
   id: number;
   ccn: string;
@@ -88,8 +111,8 @@ export interface HospiceProvider {
   nonprofit_tax_year: number | null;
 }
 
-export async function getStats() {
-  const result = await sql`
+export async function getStats(sector: Sector = 'hospice') {
+  const result = await sectorSql(sector, `
     SELECT
       COUNT(*) FILTER (WHERE classification = 'GREEN') as green_count,
       COUNT(*) FILTER (WHERE classification = 'YELLOW') as yellow_count,
@@ -98,13 +121,13 @@ export async function getStats() {
       COUNT(*) FILTER (WHERE con_state = true AND classification = 'GREEN') as green_con_count,
       ROUND(AVG(estimated_adc) FILTER (WHERE classification = 'GREEN'), 1) as avg_green_adc,
       ROUND(AVG(overall_score) FILTER (WHERE classification = 'GREEN'), 1) as avg_green_score
-    FROM hospice_providers
-  `;
+    FROM __T__
+  `);
   return result[0];
 }
 
-export async function getStateStats() {
-  return await sql`
+export async function getStateStats(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       state,
       COUNT(*) FILTER (WHERE classification = 'GREEN') as green_count,
@@ -112,63 +135,63 @@ export async function getStateStats() {
       COUNT(*) FILTER (WHERE classification = 'RED') as red_count,
       COUNT(*) as total,
       BOOL_OR(con_state) as is_con_state
-    FROM hospice_providers
+    FROM __T__
     GROUP BY state
     ORDER BY green_count DESC
     LIMIT 20
-  `;
+  `);
 }
 
-export async function getProvider(ccn: string) {
-  const result = await sql`
-    SELECT * FROM hospice_providers WHERE ccn = ${ccn}
-  `;
+export async function getProvider(ccn: string, sector: Sector = 'hospice') {
+  const result = await sectorSql(sector, `
+    SELECT * FROM __T__ WHERE ccn = $1
+  `, [ccn]);
   return result[0] as HospiceProvider | undefined;
 }
 
-export async function getWashingtonTargets() {
-  return await sql`
-    SELECT * FROM hospice_providers
+export async function getWashingtonTargets(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
+    SELECT * FROM __T__
     WHERE state = 'WA' AND classification IN ('GREEN', 'YELLOW')
     ORDER BY
       CASE classification WHEN 'GREEN' THEN 1 ELSE 2 END,
       overall_score DESC
-  `;
+  `);
 }
 
-export async function getTopTargets(limit = 25) {
-  return await sql`
-    SELECT * FROM hospice_providers
+export async function getTopTargets(limit = 25, sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
+    SELECT * FROM __T__
     WHERE classification = 'GREEN'
     ORDER BY overall_score DESC
-    LIMIT ${limit}
-  `;
+    LIMIT $1
+  `, [limit]);
 }
 
-export async function getStates() {
-  return await sql`
-    SELECT DISTINCT state FROM hospice_providers ORDER BY state
-  `;
+export async function getStates(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
+    SELECT DISTINCT state FROM __T__ ORDER BY state
+  `);
 }
 
-export async function getOwnershipStats() {
-  return await sql`
+export async function getOwnershipStats(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       ownership_type_cms as type,
       COUNT(*) as total,
       COUNT(*) FILTER (WHERE classification = 'GREEN') as green_count,
       COUNT(*) FILTER (WHERE classification = 'YELLOW') as yellow_count,
       COUNT(*) FILTER (WHERE classification = 'RED') as red_count
-    FROM hospice_providers
+    FROM __T__
     WHERE ownership_type_cms IS NOT NULL AND ownership_type_cms != ''
     GROUP BY ownership_type_cms
     ORDER BY total DESC
     LIMIT 10
-  `;
+  `);
 }
 
-export async function getAdcDistribution() {
-  return await sql`
+export async function getAdcDistribution(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       CASE
         WHEN estimated_adc < 20 THEN '0-20'
@@ -182,15 +205,15 @@ export async function getAdcDistribution() {
       COUNT(*) FILTER (WHERE classification = 'GREEN') as green_count,
       COUNT(*) FILTER (WHERE classification = 'YELLOW') as yellow_count,
       COUNT(*) FILTER (WHERE classification = 'RED') as red_count
-    FROM hospice_providers
+    FROM __T__
     WHERE estimated_adc IS NOT NULL
     GROUP BY 1
     ORDER BY MIN(estimated_adc)
-  `;
+  `);
 }
 
-export async function getScoreDistribution() {
-  return await sql`
+export async function getScoreDistribution(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       CASE
         WHEN overall_score < 30 THEN '0-30'
@@ -203,15 +226,15 @@ export async function getScoreDistribution() {
       COUNT(*) FILTER (WHERE classification = 'GREEN') as green_count,
       COUNT(*) FILTER (WHERE classification = 'YELLOW') as yellow_count,
       COUNT(*) FILTER (WHERE classification = 'RED') as red_count
-    FROM hospice_providers
+    FROM __T__
     WHERE overall_score IS NOT NULL
     GROUP BY 1
     ORDER BY MIN(overall_score)
-  `;
+  `);
 }
 
-export async function getMapData() {
-  return await sql`
+export async function getMapData(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       state,
       COUNT(*) as total,
@@ -220,14 +243,14 @@ export async function getMapData() {
       COUNT(*) FILTER (WHERE classification = 'RED') as red_count,
       BOOL_OR(con_state) as is_con_state,
       ROUND(AVG(overall_score), 1) as avg_score
-    FROM hospice_providers
+    FROM __T__
     GROUP BY state
     ORDER BY state
-  `;
+  `);
 }
 
-export async function getConStateComparison() {
-  return await sql`
+export async function getConStateComparison(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       CASE WHEN con_state THEN 'CON States' ELSE 'Non-CON States' END as category,
       COUNT(*) as total,
@@ -236,23 +259,23 @@ export async function getConStateComparison() {
       COUNT(*) FILTER (WHERE classification = 'RED') as red_count,
       ROUND(AVG(overall_score), 1) as avg_score,
       ROUND(AVG(estimated_adc), 1) as avg_adc
-    FROM hospice_providers
+    FROM __T__
     GROUP BY con_state
-  `;
+  `);
 }
 
-export async function getMarketTargets(state: string) {
-  return await sql`
-    SELECT * FROM hospice_providers
-    WHERE UPPER(state) = ${state.toUpperCase()} AND classification IN ('GREEN', 'YELLOW')
+export async function getMarketTargets(state: string, sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
+    SELECT * FROM __T__
+    WHERE UPPER(state) = $1 AND classification IN ('GREEN', 'YELLOW')
     ORDER BY
       CASE classification WHEN 'GREEN' THEN 1 ELSE 2 END,
       overall_score DESC
-  `;
+  `, [state.toUpperCase()]);
 }
 
-export async function getMarketStats(state: string) {
-  const result = await sql`
+export async function getMarketStats(state: string, sector: Sector = 'hospice') {
+  const result = await sectorSql(sector, `
     SELECT
       COUNT(*) FILTER (WHERE classification = 'GREEN') as green_count,
       COUNT(*) FILTER (WHERE classification = 'YELLOW') as yellow_count,
@@ -264,61 +287,61 @@ export async function getMarketStats(state: string) {
       COUNT(DISTINCT city) as city_count,
       COUNT(*) FILTER (WHERE website IS NOT NULL) as with_website,
       COUNT(*) FILTER (WHERE phone_number IS NOT NULL) as with_phone,
-      ROUND(AVG(cms_cahps_star)::numeric, 2) as avg_cahps_star,
-      COUNT(cms_cahps_star) as with_cahps_star
-    FROM hospice_providers
-    WHERE UPPER(state) = ${state.toUpperCase()}
-  `;
+      ROUND(AVG(cms_quality_star)::numeric, 2) as avg_quality_star,
+      COUNT(cms_quality_star) as with_quality_star
+    FROM __T__
+    WHERE UPPER(state) = $1
+  `, [state.toUpperCase()]);
   return result[0];
 }
 
-export async function getMarketCityBreakdown(state: string) {
-  return await sql`
+export async function getMarketCityBreakdown(state: string, sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       city,
       COUNT(*) FILTER (WHERE classification = 'GREEN') as green_count,
       COUNT(*) FILTER (WHERE classification = 'YELLOW') as yellow_count,
       COUNT(*) as total
-    FROM hospice_providers
-    WHERE UPPER(state) = ${state.toUpperCase()} AND classification IN ('GREEN', 'YELLOW')
+    FROM __T__
+    WHERE UPPER(state) = $1 AND classification IN ('GREEN', 'YELLOW')
     GROUP BY city
     ORDER BY green_count DESC, total DESC
     LIMIT 15
-  `;
+  `, [state.toUpperCase()]);
 }
 
-export async function getRelatedProviders(ccn: string, state: string, city: string, limit = 5) {
-  return await sql`
+export async function getRelatedProviders(ccn: string, state: string, city: string, limit = 5, sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT ccn, provider_name, city, state, classification, overall_score, estimated_adc
-    FROM hospice_providers
-    WHERE ccn != ${ccn}
-      AND state = ${state}
+    FROM __T__
+    WHERE ccn != $1
+      AND state = $2
       AND classification IN ('GREEN', 'YELLOW')
     ORDER BY
-      CASE WHEN city = ${city} THEN 0 ELSE 1 END,
+      CASE WHEN city = $3 THEN 0 ELSE 1 END,
       CASE classification WHEN 'GREEN' THEN 1 ELSE 2 END,
       overall_score DESC
-    LIMIT ${limit}
-  `;
+    LIMIT $4
+  `, [ccn, state, city, limit]);
 }
 
-export async function getMarketDemographics(state: string) {
-  const result = await sql`
+export async function getMarketDemographics(state: string, sector: Sector = 'hospice') {
+  const result = await sectorSql(sector, `
     SELECT
       ROUND(AVG(county_pop_65_plus)::numeric, 0) as avg_pop_65_plus,
       ROUND(AVG(county_pct_65_plus)::numeric, 1) as avg_pct_65_plus,
       ROUND(AVG(county_median_income)::numeric, 0) as avg_median_income,
       SUM(county_pop_65_plus) as total_pop_65_plus,
       COUNT(DISTINCT county) as counties_covered
-    FROM hospice_providers
-    WHERE UPPER(state) = ${state.toUpperCase()}
+    FROM __T__
+    WHERE UPPER(state) = $1
       AND county_pop_65_plus IS NOT NULL
-  `;
+  `, [state.toUpperCase()]);
   return result[0];
 }
 
-export async function getTopCountiesByDemographics(state: string, limit = 10) {
-  return await sql`
+export async function getTopCountiesByDemographics(state: string, limit = 10, sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       county,
       county_population,
@@ -328,47 +351,47 @@ export async function getTopCountiesByDemographics(state: string, limit = 10) {
       COUNT(*) FILTER (WHERE classification = 'GREEN') as green_count,
       COUNT(*) FILTER (WHERE classification = 'YELLOW') as yellow_count,
       COUNT(*) as provider_count
-    FROM hospice_providers
-    WHERE UPPER(state) = ${state.toUpperCase()}
+    FROM __T__
+    WHERE UPPER(state) = $1
       AND county_pop_65_plus IS NOT NULL
     GROUP BY county, county_population, county_pop_65_plus, county_pct_65_plus, county_median_income
     ORDER BY county_pop_65_plus DESC
-    LIMIT ${limit}
-  `;
+    LIMIT $2
+  `, [state.toUpperCase(), limit]);
 }
 
-export async function getGeocodedProviders(classification?: string) {
+export async function getGeocodedProviders(classification?: string, sector: Sector = 'hospice') {
   if (classification) {
-    return await sql`
+    return await sectorSql(sector, `
       SELECT
         ccn, provider_name, city, state, county, classification,
         overall_score, estimated_adc, latitude, longitude,
         county_pop_65_plus, county_pct_65_plus
-      FROM hospice_providers
+      FROM __T__
       WHERE latitude IS NOT NULL
         AND longitude IS NOT NULL
-        AND classification = ${classification}
+        AND classification = $1
       ORDER BY overall_score DESC
-    `;
+    `, [classification]);
   }
 
-  return await sql`
+  return await sectorSql(sector, `
     SELECT
       ccn, provider_name, city, state, county, classification,
       overall_score, estimated_adc, latitude, longitude,
       county_pop_65_plus, county_pct_65_plus
-    FROM hospice_providers
+    FROM __T__
     WHERE latitude IS NOT NULL
       AND longitude IS NOT NULL
       AND classification IN ('GREEN', 'YELLOW')
     ORDER BY
       CASE classification WHEN 'GREEN' THEN 1 ELSE 2 END,
       overall_score DESC
-  `;
+  `);
 }
 
-export async function getCountyHeatmapData() {
-  return await sql`
+export async function getCountyHeatmapData(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT DISTINCT
       county,
       state,
@@ -380,12 +403,12 @@ export async function getCountyHeatmapData() {
       AVG(longitude) as lng,
       COUNT(*) FILTER (WHERE classification = 'GREEN') as green_count,
       COUNT(*) FILTER (WHERE classification = 'YELLOW') as yellow_count
-    FROM hospice_providers
+    FROM __T__
     WHERE latitude IS NOT NULL
       AND county_pop_65_plus IS NOT NULL
     GROUP BY county, state, county_fips, county_pop_65_plus, county_pct_65_plus, county_median_income
     ORDER BY county_pop_65_plus DESC
-  `;
+  `);
 }
 
 export async function getProvidersByFilter(filters: {
@@ -397,6 +420,7 @@ export async function getProvidersByFilter(filters: {
   conStateOnly?: boolean;
   limit?: number;
   offset?: number;
+  sector?: Sector;
 }) {
   const {
     state,
@@ -407,42 +431,52 @@ export async function getProvidersByFilter(filters: {
     conStateOnly,
     limit = 50,
     offset = 0,
+    sector = 'hospice',
   } = filters;
 
-  // Build dynamic query
-  let query = sql`
-    SELECT * FROM hospice_providers
-    WHERE 1=1
-  `;
+  const table = t(sector);
+  const conditions: string[] = ['1=1'];
+  const params: any[] = [];
+  let paramIdx = 1;
 
   if (state) {
-    query = sql`${query} AND UPPER(state) = ${state.toUpperCase()}`;
+    conditions.push(`UPPER(state) = $${paramIdx++}`);
+    params.push(state.toUpperCase());
   }
   if (city) {
-    query = sql`${query} AND LOWER(city) = ${city.toLowerCase()}`;
+    conditions.push(`LOWER(city) = $${paramIdx++}`);
+    params.push(city.toLowerCase());
   }
   if (classification) {
-    query = sql`${query} AND classification = ${classification}`;
+    conditions.push(`classification = $${paramIdx++}`);
+    params.push(classification);
   }
   if (minAdc !== undefined) {
-    query = sql`${query} AND estimated_adc >= ${minAdc}`;
+    conditions.push(`estimated_adc >= $${paramIdx++}`);
+    params.push(minAdc);
   }
   if (maxAdc !== undefined) {
-    query = sql`${query} AND estimated_adc <= ${maxAdc}`;
+    conditions.push(`estimated_adc <= $${paramIdx++}`);
+    params.push(maxAdc);
   }
   if (conStateOnly) {
-    query = sql`${query} AND con_state = true`;
+    conditions.push(`con_state = true`);
   }
 
-  query = sql`${query}
+  const where = conditions.join(' AND ');
+  params.push(limit, offset);
+
+  const query = `
+    SELECT * FROM ${table}
+    WHERE ${where}
     ORDER BY
       CASE classification WHEN 'GREEN' THEN 1 WHEN 'YELLOW' THEN 2 ELSE 3 END,
       overall_score DESC
-    LIMIT ${limit}
-    OFFSET ${offset}
+    LIMIT $${paramIdx++}
+    OFFSET $${paramIdx++}
   `;
 
-  return await query;
+  return sql.query(query, params);
 }
 
 // ============================================
@@ -530,8 +564,8 @@ export function calculateOwnerCarryBackScore(provider: HospiceProvider): {
 }
 
 // Get Owner Carry-Back Candidates
-export async function getOwnerCarryBackCandidates(limit = 50) {
-  return await sql`
+export async function getOwnerCarryBackCandidates(limit = 50, sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       *,
       CASE
@@ -542,7 +576,7 @@ export async function getOwnerCarryBackCandidates(limit = 50) {
         THEN 'MEDIUM'
         ELSE 'LOW'
       END as carry_back_likelihood
-    FROM hospice_providers
+    FROM __T__
     WHERE classification IN ('GREEN', 'YELLOW')
       AND pe_backed = false
     ORDER BY
@@ -556,13 +590,13 @@ export async function getOwnerCarryBackCandidates(limit = 50) {
       END,
       CASE classification WHEN 'GREEN' THEN 1 ELSE 2 END,
       overall_score DESC
-    LIMIT ${limit}
-  `;
+    LIMIT $1
+  `, [limit]);
 }
 
 // Get Endemic Company Statistics
-export async function getEndemicStats() {
-  const result = await sql`
+export async function getEndemicStats(sector: Sector = 'hospice') {
+  const result = await sectorSql(sector, `
     SELECT
       COUNT(*) FILTER (WHERE pe_backed = false AND chain_affiliated = false) as endemic_count,
       COUNT(*) FILTER (WHERE pe_backed = false AND chain_affiliated = false AND classification = 'GREEN') as endemic_green,
@@ -579,14 +613,14 @@ export async function getEndemicStats() {
       ) as prime_carry_back_targets,
       ROUND(AVG(estimated_adc) FILTER (WHERE pe_backed = false AND chain_affiliated = false AND classification = 'GREEN'), 1) as avg_endemic_adc,
       ROUND(AVG(overall_score) FILTER (WHERE pe_backed = false AND chain_affiliated = false AND classification = 'GREEN'), 1) as avg_endemic_score
-    FROM hospice_providers
-  `;
+    FROM __T__
+  `);
   return result[0];
 }
 
 // Get Endemic Companies by State
-export async function getEndemicByState() {
-  return await sql`
+export async function getEndemicByState(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       state,
       COUNT(*) FILTER (WHERE pe_backed = false AND chain_affiliated = false) as endemic_count,
@@ -594,78 +628,62 @@ export async function getEndemicByState() {
       COUNT(*) FILTER (WHERE pe_backed = false AND chain_affiliated = false AND classification = 'YELLOW') as endemic_yellow,
       BOOL_OR(con_state) as is_con_state,
       ROUND(AVG(overall_score) FILTER (WHERE pe_backed = false AND chain_affiliated = false AND classification = 'GREEN'), 1) as avg_score
-    FROM hospice_providers
+    FROM __T__
     WHERE pe_backed = false AND chain_affiliated = false
     GROUP BY state
     ORDER BY endemic_green DESC
     LIMIT 20
-  `;
+  `);
 }
 
 // Get Acquisition Deal Pipeline Stats
-export async function getDealPipelineStats() {
-  const result = await sql`
+export async function getDealPipelineStats(sector: Sector = 'hospice') {
+  const result = await sectorSql(sector, `
     SELECT
-      -- Platform candidates (larger, GREEN, ideal for building)
       COUNT(*) FILTER (
         WHERE classification = 'GREEN'
           AND estimated_adc >= 40
           AND overall_score >= 70
       ) as platform_candidates,
-
-      -- Tuck-in candidates (smaller, can be added to existing platform)
       COUNT(*) FILTER (
         WHERE classification IN ('GREEN', 'YELLOW')
           AND estimated_adc < 40
           AND pe_backed = false
       ) as tuckin_candidates,
-
-      -- Owner carry-back prime targets
       COUNT(*) FILTER (
         WHERE pe_backed = false
           AND chain_affiliated = false
           AND COALESCE(owner_count, 1) <= 2
           AND classification = 'GREEN'
       ) as owner_finance_targets,
-
-      -- Outreach ready
       COUNT(*) FILTER (
         WHERE outreach_readiness = 'Ready'
           AND classification = 'GREEN'
       ) as outreach_ready,
-
-      -- With contact info
       COUNT(*) FILTER (
         WHERE (phone_number IS NOT NULL OR administrator_phone IS NOT NULL)
           AND classification = 'GREEN'
       ) as contactable_green,
-
-      -- CON protected premium
       COUNT(*) FILTER (
         WHERE con_state = true
           AND classification = 'GREEN'
           AND pe_backed = false
       ) as con_protected_independent,
-
-      -- Financial data available
       COUNT(*) FILTER (
         WHERE total_revenue IS NOT NULL
           AND classification = 'GREEN'
       ) as with_financials,
-
-      -- Total estimated market value (rough: $10K per ADC patient)
       ROUND(SUM(estimated_adc * 10000) FILTER (WHERE classification = 'GREEN') / 1000000, 1) as total_market_value_mm
-    FROM hospice_providers
-  `;
+    FROM __T__
+  `);
   return result[0];
 }
 
 // Get Top Owner Carry-Back Opportunities (detailed)
-export async function getTopOwnerCarryBackOpportunities(limit = 25) {
-  return await sql`
+export async function getTopOwnerCarryBackOpportunities(limit = 25, sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       *,
-      -- Calculate a composite carry-back score
       (
         CASE WHEN pe_backed = false THEN 30 ELSE 0 END +
         CASE WHEN chain_affiliated = false THEN 20 ELSE 5 END +
@@ -683,7 +701,7 @@ export async function getTopOwnerCarryBackOpportunities(limit = 25) {
         CASE WHEN recent_ownership_change = false THEN 10 ELSE 2 END +
         CASE WHEN ownership_type_cms ILIKE '%for-profit%' OR ownership_type_cms ILIKE '%proprietary%' THEN 5 ELSE 0 END
       ) as carry_back_score
-    FROM hospice_providers
+    FROM __T__
     WHERE classification IN ('GREEN', 'YELLOW')
       AND pe_backed = false
       AND chain_affiliated = false
@@ -706,8 +724,8 @@ export async function getTopOwnerCarryBackOpportunities(limit = 25) {
         CASE WHEN ownership_type_cms ILIKE '%for-profit%' OR ownership_type_cms ILIKE '%proprietary%' THEN 5 ELSE 0 END
       ) DESC,
       overall_score DESC
-    LIMIT ${limit}
-  `;
+    LIMIT $1
+  `, [limit]);
 }
 
 // ============================================
@@ -984,17 +1002,17 @@ export async function getOutreachHistory(ccn: string) {
 // VALUATION CALCULATOR
 // ============================================
 
-export async function getProviderFinancials(ccn: string) {
-  const result = await sql`
+export async function getProviderFinancials(ccn: string, sector: Sector = 'hospice') {
+  const result = await sectorSql(sector, `
     SELECT
       ccn, provider_name, state, city, estimated_adc,
       total_revenue, total_expenses, net_income, cost_report_year,
       total_patient_days, cost_per_day,
       nonprofit_revenue, nonprofit_assets, exec_compensation, nonprofit_tax_year,
       ownership_type_cms, pe_backed, chain_affiliated
-    FROM hospice_providers
-    WHERE ccn = ${ccn}
-  `;
+    FROM __T__
+    WHERE ccn = $1
+  `, [ccn]);
   return result[0];
 }
 
@@ -1022,54 +1040,56 @@ export async function getIndustryMultiples() {
 // PROVIDER COMPARISON
 // ============================================
 
-export async function getProvidersForComparison(ccns: string[]) {
-  return await sql`
+export async function getProvidersForComparison(ccns: string[], sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       ccn, provider_name, state, city, county, classification,
       overall_score, quality_score, compliance_score, operational_score, market_score,
       estimated_adc, total_revenue, total_expenses, net_income,
       pe_backed, chain_affiliated, owner_count, ownership_type_cms,
       con_state, county_pop_65_plus, county_pct_65_plus, county_median_income,
-      cms_quality_star, cms_cahps_star, competitive_density,
+      cms_quality_star, competitive_density,
       phone_number, administrator_name
-    FROM hospice_providers
-    WHERE ccn = ANY(${ccns})
-  `;
+    FROM __T__
+    WHERE ccn = ANY($1)
+  `, [ccns]);
 }
 
 // ============================================
 // SIMILAR PROVIDERS
 // ============================================
 
-export async function getSimilarProviders(ccn: string, limit = 5) {
-  const ref = await sql`SELECT state, estimated_adc, overall_score, classification FROM hospice_providers WHERE ccn = ${ccn}`;
+export async function getSimilarProviders(ccn: string, limit = 5, sector: Sector = 'hospice') {
+  const ref = await sectorSql(sector, `SELECT state, estimated_adc, overall_score, classification FROM __T__ WHERE ccn = $1`, [ccn]);
   if (!ref[0]) return [];
 
   const { state, estimated_adc, overall_score, classification } = ref[0];
+  const adc = estimated_adc || 20;
+  const score = overall_score || 50;
 
-  return await sql`
+  return await sectorSql(sector, `
     SELECT ccn, provider_name, state, city, classification, overall_score, estimated_adc,
            pe_backed, chain_affiliated, total_revenue
-    FROM hospice_providers
-    WHERE ccn != ${ccn}
+    FROM __T__
+    WHERE ccn != $1
       AND (
-        state = ${state}
-        OR (estimated_adc BETWEEN ${(estimated_adc || 20) * 0.7} AND ${(estimated_adc || 20) * 1.3})
+        state = $2
+        OR (estimated_adc BETWEEN $3 AND $4)
       )
-      AND classification = ${classification}
+      AND classification = $5
     ORDER BY
-      ABS(COALESCE(estimated_adc, 20) - ${estimated_adc || 20}) +
-      ABS(COALESCE(overall_score, 50) - ${overall_score || 50}) * 0.5
-    LIMIT ${limit}
-  `;
+      ABS(COALESCE(estimated_adc, 20) - $6) +
+      ABS(COALESCE(overall_score, 50) - $7) * 0.5
+    LIMIT $8
+  `, [ccn, state, adc * 0.7, adc * 1.3, classification, adc, score, limit]);
 }
 
 // ============================================
 // DATA QUALITY METRICS
 // ============================================
 
-export async function getDataQualityScore(ccn: string) {
-  const result = await sql`
+export async function getDataQualityScore(ccn: string, sector: Sector = 'hospice') {
+  const result = await sectorSql(sector, `
     SELECT
       ccn,
       (
@@ -1092,9 +1112,9 @@ export async function getDataQualityScore(ccn: string) {
         CASE WHEN cms_quality_star IS NULL THEN 'quality_stars' END,
         CASE WHEN county_pop_65_plus IS NULL THEN 'demographics' END
       ], NULL) as missing_fields
-    FROM hospice_providers
-    WHERE ccn = ${ccn}
-  `;
+    FROM __T__
+    WHERE ccn = $1
+  `, [ccn]);
   return result[0];
 }
 
@@ -1102,8 +1122,8 @@ export async function getDataQualityScore(ccn: string) {
 // MARKET CONSOLIDATION
 // ============================================
 
-export async function getMarketConsolidation() {
-  return await sql`
+export async function getMarketConsolidation(sector: Sector = 'hospice') {
+  return await sectorSql(sector, `
     SELECT
       state,
       COUNT(*) as total_providers,
@@ -1112,39 +1132,45 @@ export async function getMarketConsolidation() {
       COUNT(*) FILTER (WHERE pe_backed = false AND chain_affiliated = false) as independent,
       ROUND(COUNT(*) FILTER (WHERE pe_backed = true)::numeric / COUNT(*)::numeric * 100, 1) as pe_penetration_pct,
       ROUND(COUNT(*) FILTER (WHERE chain_affiliated = true)::numeric / COUNT(*)::numeric * 100, 1) as chain_penetration_pct
-    FROM hospice_providers
+    FROM __T__
     GROUP BY state
     ORDER BY pe_penetration_pct DESC
-  `;
+  `);
 }
 
-export async function getPEPortfolios() {
-  return await sql`
+export async function getPEPortfolios(sector: Sector = 'hospice') {
+  // Major chains differ by sector
+  const hospiceChains = `
+    CASE
+      WHEN provider_name ILIKE '%amedisys%' THEN 'Amedisys'
+      WHEN provider_name ILIKE '%vitas%' THEN 'VITAS (Chemed)'
+      WHEN provider_name ILIKE '%kindred%' OR provider_name ILIKE '%gentiva%' THEN 'Humana (Kindred)'
+      WHEN provider_name ILIKE '%compassus%' THEN 'Compassus'
+      WHEN provider_name ILIKE '%seasons%' THEN 'Seasons Hospice'
+      WHEN provider_name ILIKE '%enhabit%' THEN 'Enhabit'
+      ELSE 'Other/Independent'
+    END`;
+  const homeHealthChains = `
+    CASE
+      WHEN provider_name ILIKE '%amedisys%' THEN 'Amedisys'
+      WHEN provider_name ILIKE '%kindred%' OR provider_name ILIKE '%gentiva%' THEN 'Humana (Kindred)'
+      WHEN provider_name ILIKE '%enhabit%' THEN 'Enhabit'
+      WHEN provider_name ILIKE '%bayada%' THEN 'BAYADA'
+      WHEN provider_name ILIKE '%lhc%' OR provider_name ILIKE '%united%home%' THEN 'UnitedHealth/LHC'
+      WHEN provider_name ILIKE '%addus%' OR provider_name ILIKE '%brightspring%' THEN 'BrightSpring'
+      ELSE 'Other/Independent'
+    END`;
+  const chainCase = sector === 'home_health' ? homeHealthChains : hospiceChains;
+
+  return await sectorSql(sector, `
     SELECT
-      CASE
-        WHEN provider_name ILIKE '%amedisys%' THEN 'Amedisys'
-        WHEN provider_name ILIKE '%vitas%' THEN 'VITAS (Chemed)'
-        WHEN provider_name ILIKE '%kindred%' OR provider_name ILIKE '%gentiva%' THEN 'Humana (Kindred)'
-        WHEN provider_name ILIKE '%compassus%' THEN 'Compassus'
-        WHEN provider_name ILIKE '%seasons%' THEN 'Seasons Hospice'
-        WHEN provider_name ILIKE '%enhabit%' THEN 'Enhabit'
-        ELSE 'Other/Independent'
-      END as portfolio_group,
+      ${chainCase} as portfolio_group,
       COUNT(*) as provider_count,
       SUM(estimated_adc) as total_adc,
       ARRAY_AGG(DISTINCT state) as states
-    FROM hospice_providers
+    FROM __T__
     WHERE pe_backed = true OR chain_affiliated = true
-    GROUP BY
-      CASE
-        WHEN provider_name ILIKE '%amedisys%' THEN 'Amedisys'
-        WHEN provider_name ILIKE '%vitas%' THEN 'VITAS (Chemed)'
-        WHEN provider_name ILIKE '%kindred%' OR provider_name ILIKE '%gentiva%' THEN 'Humana (Kindred)'
-        WHEN provider_name ILIKE '%compassus%' THEN 'Compassus'
-        WHEN provider_name ILIKE '%seasons%' THEN 'Seasons Hospice'
-        WHEN provider_name ILIKE '%enhabit%' THEN 'Enhabit'
-        ELSE 'Other/Independent'
-      END
+    GROUP BY ${chainCase}
     ORDER BY provider_count DESC
-  `;
+  `);
 }

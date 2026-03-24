@@ -1,20 +1,23 @@
-import { getTopTargets, getStats } from '@/lib/db';
+import { getTopTargets, getStats, type Sector } from '@/lib/db';
 import { ProviderTable } from '@/components/ProviderTable';
 import { StatCard } from '@/components/StatCard';
+import { SectorPageWrapper } from '@/components/SectorPageWrapper';
 
 export const dynamic = 'force-dynamic';
 
-export default async function GreenPage() {
+async function GreenContent({ sector }: { sector: Sector }) {
   const [greenTargets, stats] = await Promise.all([
-    getTopTargets(100),
-    getStats(),
+    getTopTargets(100, sector),
+    getStats(sector),
   ]);
+
+  const sectorLabel = sector === 'home_health' ? 'Home Health' : 'Hospice';
 
   return (
     <div className="max-w-7xl mx-auto px-6">
       <div className="mb-8">
         <h1 className="text-4xl font-bold font-[family-name:var(--font-display)] mb-2">
-          <span className="text-emerald-400">GREEN</span> Targets
+          <span className="text-emerald-400">GREEN</span> {sectorLabel} Targets
         </h1>
         <p className="text-[var(--color-text-secondary)] text-lg">
           Strong acquisition candidates — prioritize for outreach
@@ -54,27 +57,27 @@ export default async function GreenPage() {
         <h3 className="font-semibold text-[var(--color-turquoise-400)] mb-3">GREEN Classification Criteria</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-[var(--color-text-secondary)]">
           <div className="flex items-start gap-2">
-            <span className="text-emerald-400">✓</span>
+            <span className="text-emerald-400">+</span>
             <span>ADC within target range (&lt;60)</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-emerald-400">✓</span>
-            <span>Quality score ≥70</span>
+            <span className="text-emerald-400">+</span>
+            <span>Quality score &ge;70</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-emerald-400">✓</span>
-            <span>Compliance score ≥70</span>
+            <span className="text-emerald-400">+</span>
+            <span>Compliance score &ge;70</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-emerald-400">✓</span>
+            <span className="text-emerald-400">+</span>
             <span>3+ confirming signals required</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-emerald-400">✓</span>
+            <span className="text-emerald-400">+</span>
             <span>CON state bonus applied</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-emerald-400">✓</span>
+            <span className="text-emerald-400">+</span>
             <span>Simple ownership preferred</span>
           </div>
         </div>
@@ -82,5 +85,16 @@ export default async function GreenPage() {
 
       <ProviderTable providers={greenTargets as any} showAllColumns />
     </div>
+  );
+}
+
+export default async function GreenPage({ searchParams }: { searchParams: Promise<{ sector?: string }> }) {
+  const params = await searchParams;
+  const sector = (params.sector === 'home_health' ? 'home_health' : 'hospice') as Sector;
+
+  return (
+    <SectorPageWrapper>
+      <GreenContent sector={sector} />
+    </SectorPageWrapper>
   );
 }

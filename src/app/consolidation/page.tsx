@@ -6,6 +6,7 @@ import {
   Building2, TrendingUp, PieChart, MapPin, Loader2,
   ArrowUpRight, ArrowDownRight, Minus, Users, DollarSign
 } from 'lucide-react';
+import { useSector } from '@/components/SectorProvider';
 
 interface StateConsolidation {
   state: string;
@@ -42,6 +43,7 @@ const getPenetrationColor = (pct: number | string) => {
 };
 
 export default function ConsolidationPage() {
+  const { sector } = useSector();
   const [stateData, setStateData] = useState<StateConsolidation[]>([]);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,13 +52,13 @@ export default function ConsolidationPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [sector]);
 
   async function fetchData() {
     try {
       const [statesRes, portfoliosRes] = await Promise.all([
-        fetch('/api/consolidation?type=states'),
-        fetch('/api/consolidation?type=portfolios'),
+        fetch(`/api/consolidation?type=states&sector=${sector}`),
+        fetch(`/api/consolidation?type=portfolios&sector=${sector}`),
       ]);
 
       const statesData = await statesRes.json();
